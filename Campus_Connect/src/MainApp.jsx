@@ -54,9 +54,21 @@ export default function MainApp() {
     try {
       const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
       if (Array.isArray(saved) && saved.length > 0) {
-        const initialIds = new Set(INITIAL_POSTS.map(p => p.id));
-        const customOnly = saved.filter(p => !initialIds.has(p.id));
-        return [...customOnly, ...INITIAL_POSTS];
+        const seen = new Set();
+        const list = [];
+        for (const p of saved) {
+          if (!seen.has(p.id)) {
+            seen.add(p.id);
+            list.push(p);
+          }
+        }
+        for (const p of INITIAL_POSTS) {
+          if (!seen.has(p.id)) {
+            seen.add(p.id);
+            list.push(p);
+          }
+        }
+        return list;
       }
     } catch (e) {
       console.warn('Saved posts read error:', e);
@@ -102,9 +114,21 @@ export default function MainApp() {
         });
         if (postsArray.length > 0) {
           setPosts(prev => {
-            const remoteIds = new Set(postsArray.map(p => p.id));
-            const unsyncedLocal = prev.filter(p => p.id.startsWith('p_') && !remoteIds.has(p.id));
-            return [...unsyncedLocal, ...postsArray];
+            const seen = new Set();
+            const combined = [];
+            for (const p of postsArray) {
+              if (!seen.has(p.id)) {
+                seen.add(p.id);
+                combined.push(p);
+              }
+            }
+            for (const p of prev) {
+              if (!seen.has(p.id)) {
+                seen.add(p.id);
+                combined.push(p);
+              }
+            }
+            return combined;
           });
         }
       }, (error) => {
