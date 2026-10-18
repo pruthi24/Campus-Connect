@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from './Icons';
+import ImageCropModal from './ImageCropModal';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { updateProfile } from 'firebase/auth';
@@ -17,6 +18,8 @@ export default function ProfileDashboard({
   activeSection: propActiveSection
 }) {
   const [activeSection, setActiveSection] = useState('overview'); // overview, bio, achievements, settings, activity
+  const [avatarCropOpen, setAvatarCropOpen] = useState(false);
+  const [rawAvatarImage, setRawAvatarImage] = useState(null);
 
   useEffect(() => {
     if (propActiveSection) {
@@ -180,15 +183,26 @@ export default function ProfileDashboard({
     setIsEditingBio(true);
   };
 
-  // Image Upload handler with downscaling for device/phone uploads
+  // Image Upload handler with crop modal for avatar and downscaling for achievements
   const handleFileSimulate = (field, e) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (field === 'avatar') {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setRawAvatarImage(event.target.result);
+          setAvatarCropOpen(true);
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          const maxDim = field === 'avatar' ? 400 : 800;
+          const maxDim = 800;
           let width = img.width;
           let height = img.height;
           if (width > maxDim || height > maxDim) {
@@ -207,20 +221,22 @@ export default function ProfileDashboard({
           ctx.drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
-          if (field === 'avatar') {
-            syncUserChanges({ avatar: dataUrl });
-            addNotification('Profile avatar updated!', 'general');
-          } else {
-            setAchievementForm(prev => ({
-              ...prev,
-              [field]: dataUrl
-            }));
-          }
+          setAchievementForm(prev => ({
+            ...prev,
+            [field]: dataUrl
+          }));
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
+  };
+
+  const handleAvatarCropComplete = (croppedUrl) => {
+    syncUserChanges({ avatar: croppedUrl });
+    addNotification('Profile avatar updated!', 'general');
+    setAvatarCropOpen(false);
   };
 
   // Achievement CRUD Actions
@@ -1173,6 +1189,14 @@ export default function ProfileDashboard({
         </AnimatePresence>
       </div>
 
+      {/* Profile Avatar Crop Modal */}
+      <ImageCropModal
+        isOpen={avatarCropOpen}
+        imageSrc={rawAvatarImage}
+        mode="profile"
+        onCropComplete={handleAvatarCropComplete}
+        onClose={() => setAvatarCropOpen(false)}
+      />
     </div>
   );
 }

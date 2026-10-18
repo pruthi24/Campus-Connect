@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from './Icons';
 import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import ImageCropModal from './ImageCropModal';
 
 export default function Feed({
   posts,
@@ -20,6 +21,11 @@ export default function Feed({
   const [toastMessage, setToastMessage] = useState('');
   const [localSearch, setLocalSearch] = useState('');
   const [activeMenuId, setActiveMenuId] = useState(null);
+
+  // Crop Modal state
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawCropImage, setRawCropImage] = useState(null);
+  const [cropTarget, setCropTarget] = useState('new'); // 'new' or 'edit'
 
   // Edit post states
   const [editingPostId, setEditingPostId] = useState(null);
@@ -46,50 +52,20 @@ export default function Feed({
     setLocalSearch(searchQuery || '');
   }, [searchQuery]);
 
-  // Compress & read image from device (phone camera/gallery or PC files) via Canvas
-  const compressAndReadImage = (file, callback) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      triggerToast('Please select an image file (JPG, PNG, WebP)');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 1200;
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-        callback(dataUrl);
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
   const handleLocalImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      compressAndReadImage(file, (dataUrl) => {
-        setSelectedPhotoUrl(dataUrl);
-        setActivePostTag('Photo');
-        triggerToast('Photo attached from device 📷');
-      });
+      if (!file.type.startsWith('image/')) {
+        triggerToast('Please select a valid image file');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setRawCropImage(event.target.result);
+        setCropTarget('new');
+        setCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
     }
     e.target.value = '';
   };
@@ -97,12 +73,31 @@ export default function Feed({
   const handleEditImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      compressAndReadImage(file, (dataUrl) => {
-        setEditingPostImage(dataUrl);
-        triggerToast('Photo updated 📷');
-      });
+      if (!file.type.startsWith('image/')) {
+        triggerToast('Please select a valid image file');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setRawCropImage(event.target.result);
+        setCropTarget('edit');
+        setCropModalOpen(true);
+      };
+      reader.readAsDataURL(file);
     }
     e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedDataUrl) => {
+    if (cropTarget === 'new') {
+      setSelectedPhotoUrl(croppedDataUrl);
+      setActivePostTag('Photo');
+      triggerToast('Photo framed and attached 📷');
+    } else {
+      setEditingPostImage(croppedDataUrl);
+      triggerToast('Photo updated 📷');
+    }
+    setCropModalOpen(false);
   };
 
   // Helper to determine if current user owns this post (or is admin)
@@ -393,8 +388,8 @@ export default function Feed({
     }));
   };
 
-  // Post comment submission
-  const handleAddComment = (postId, e) => {
+  // Post comment submission with local & cloud persistence
+  const handleAddComment = async (postId, e) => {
     e.preventDefault();
     const commentText = commentInputs[postId] || '';
     if (!commentText.trim()) return;
@@ -402,31 +397,56 @@ export default function Feed({
     const finalName = currentUser?.name || 'Student';
     const finalAvatar = currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=7A1A22&color=fff&bold=true`;
 
-    setPosts(
-      posts.map((post) => {
+    const newComment = {
+      id: `c_${Date.now()}`,
+      userName: finalName,
+      userAvatar: finalAvatar,
+      text: commentText.trim(),
+      time: 'Just now'
+    };
+
+    let updatedComments = [];
+
+    setPosts((prev) =>
+      prev.map((post) => {
         if (post.id === postId) {
+          updatedComments = [...(post.comments || []), newComment];
           return {
             ...post,
-            comments: [
-              ...post.comments,
-              {
-                id: `c_new_${Date.now()}`,
-                userName: finalName,
-                userAvatar: finalAvatar,
-                text: commentText,
-                time: 'Just now'
-              }
-            ]
+            comments: updatedComments
           };
         }
         return post;
       })
     );
 
+    setExpandedComments((prev) => ({
+      ...prev,
+      [postId]: true
+    }));
+
     setCommentInputs((prev) => ({
       ...prev,
       [postId]: ''
     }));
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+      const updated = saved.map((p) => (p.id === postId ? { ...p, comments: updatedComments } : p));
+      localStorage.setItem('campus_connect_local_posts', JSON.stringify(updated));
+    } catch (err) {}
+
+    try {
+      if (postId && !postId.startsWith('p_mock_') && !postId.startsWith('p1') && !postId.startsWith('p2') && !postId.startsWith('p_')) {
+        await updateDoc(doc(db, 'posts', postId), {
+          comments: updatedComments
+        });
+      }
+    } catch (err) {
+      console.warn('Comment Firestore sync error:', err.message);
+    }
+
+    triggerToast('Comment posted! 💬');
   };
 
   // Filter logic
@@ -667,6 +687,15 @@ export default function Feed({
           </div>
         </form>
       </div>
+
+      {/* Universal Image Cropper Modal */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageSrc={rawCropImage}
+        mode="post"
+        onCropComplete={handleCropComplete}
+        onClose={() => setCropModalOpen(false)}
+      />
 
       {/* Feed List */}
       <div className="feed-posts-list">
@@ -942,7 +971,7 @@ export default function Feed({
                     className="post-action-btn comment flex align-center gap-8"
                   >
                     <Icons.MessageSquare size={18} />
-                    <span>{post.comments.length}</span>
+                    <span>{(post.comments || []).length}</span>
                   </button>
 
                   <button
@@ -962,15 +991,43 @@ export default function Feed({
                 </button>
               </div>
 
+              {/* Quick comments preview link when collapsed */}
+              {(post.comments || []).length > 0 && !expandedComments[post.id] && (
+                <div style={{ padding: '6px 0 2px 0' }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleComments(post.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>💬</span> View all {(post.comments || []).length} comments
+                  </button>
+                </div>
+              )}
+
               {/* Comments drawer */}
               {expandedComments[post.id] && (
                 <div className="comments-drawer">
-                  {post.comments.length > 0 && (
+                  {(post.comments || []).length === 0 ? (
+                    <div style={{ padding: '12px 0', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', fontStyle: 'italic' }}>
+                      No comments yet. Be the first to start the discussion!
+                    </div>
+                  ) : (
                     <div className="comments-list">
-                      {post.comments.map((comment) => (
+                      {(post.comments || []).map((comment) => (
                         <div key={comment.id} className="comment-item flex gap-12">
                           <img
-                            src={comment.userAvatar}
+                            src={comment.userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.userName || 'Student')}&background=7A1A22&color=fff&bold=true`}
                             alt={comment.userName}
                             className="comment-avatar"
                           />
@@ -992,8 +1049,8 @@ export default function Feed({
                     className="add-comment-form flex gap-12 align-center"
                   >
                     <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
+                      src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Student')}&background=7A1A22&color=fff&bold=true`}
+                      alt={currentUser?.name || 'User'}
                       className="comment-avatar"
                     />
                     <input
@@ -1008,7 +1065,7 @@ export default function Feed({
                       }
                       className="comment-input"
                     />
-                    <button type="submit" className="comment-submit-btn">
+                    <button type="submit" className="comment-submit-btn" disabled={!commentInputs[post.id]?.trim()}>
                       <Icons.Send size={16} />
                     </button>
                   </form>
@@ -1303,12 +1360,19 @@ export default function Feed({
           border-radius: var(--radius-md);
           overflow: hidden;
           border: 1px solid var(--border);
-          height: 350px;
+          max-height: 520px;
+          width: 100%;
+          background-color: #080c14;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 12px;
         }
         .post-image {
           width: 100%;
-          height: 100%;
-          object-fit: cover;
+          max-height: 520px;
+          object-fit: contain;
+          display: block;
         }
 
         /* Feed Poll Card */

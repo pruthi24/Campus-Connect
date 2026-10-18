@@ -32,8 +32,9 @@ export default function Login() {
       await loginWithGoogle();
       navigate('/');
     } catch (err) {
-      // Don't show scary error if user simply closed the popup
-      if (err.code !== 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/operation-not-allowed') {
+        setError('Google Sign-In is not enabled yet in your Firebase Project. In Firebase Console, go to Authentication > Sign-in method, click Google, toggle Enable, select your support email, and click Save.');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         setError('Google Sign-In failed: ' + err.message);
       }
     } finally {
