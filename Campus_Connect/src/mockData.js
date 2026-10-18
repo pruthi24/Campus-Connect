@@ -1,58 +1,36 @@
 export const MOCK_USERS = {
-  priya: {
-    id: "priya",
-    name: "Priya Das",
+  arnav: {
+    id: "arnav",
+    name: "Arnav Dutta",
     role: "Student",
-    details: "4th Year, CS",
+    details: "3rd Year, CSE",
     points: 2400,
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
+    avatar: "https://ui-avatars.com/api/?name=Arnav+Dutta&background=7A1A22&color=fff&bold=true",
     badge: "Elite Contributor",
-    badgeDesc: "Awarded for 50+ helpful feed posts",
+    badgeDesc: "Top contributor on GITA Campus Connect",
     progress: 92
   },
-  arjun: {
-    id: "arjun",
-    name: "Arjun Mehta",
-    role: "Student",
-    details: "3rd Year, CS",
-    points: 2100,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
-    badge: "Tech Intern",
-    badgeDesc: "Completed industry summer internship",
-    progress: 81
+  codingClub: {
+    id: "codingClub",
+    name: "GITA Developers Guild",
+    role: "Official Club",
+    details: "Technical Society, GITA",
+    points: 5000,
+    avatar: "https://ui-avatars.com/api/?name=Developers+Guild&background=1E293B&color=fff&bold=true",
+    badge: "Tech Society",
+    badgeDesc: "Official Coding Community of GITA",
+    progress: 100
   },
-  rohan: {
-    id: "rohan",
-    name: "Rohan Singh",
-    role: "Student",
-    details: "3rd Year, CS",
-    points: 2100,
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80",
-    badge: "Coding Champion",
-    badgeDesc: "Ranked top in college coding leagues",
-    progress: 81
-  },
-  ananya: {
-    id: "ananya",
-    name: "Ananya Rao",
-    role: "Student",
-    details: "2nd Year, ECE",
-    points: 1900,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80",
-    badge: "Resource Explorer",
-    badgeDesc: "Active library catalog contributor",
-    progress: 73
-  },
-  sarah: {
-    id: "sarah",
-    name: "Sarah Wilson",
-    role: "Student",
-    details: "Final Year, Mechanical",
-    points: 1850,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&h=150&q=80",
-    badge: "Cultural Catalyst",
-    badgeDesc: "Successfully organized GITA Cultural Fest",
-    progress: 70
+  placementCell: {
+    id: "placementCell",
+    name: "GITA Training & Placement Cell",
+    role: "Administration",
+    details: "Training & Placement Cell, GITA",
+    points: 9999,
+    avatar: "https://ui-avatars.com/api/?name=Placement+Cell&background=7A1A22&color=fff&bold=true",
+    badge: "Placement Directorate",
+    badgeDesc: "Official Placement Portal",
+    progress: 100
   }
 };
 
@@ -122,69 +100,64 @@ export const INITIAL_EVENTS = [
 export const INITIAL_POSTS = [
   {
     id: "p1",
-    user: MOCK_USERS.arjun,
+    user: {
+      id: "codingClub",
+      name: "GITA Developers Guild",
+      avatar: "https://ui-avatars.com/api/?name=Developers+Guild&background=1E293B&color=fff&bold=true",
+      details: "Official Technical Society • GITA",
+      role: "club"
+    },
     time: "2h ago",
-    content: "Thrilled to share that I've just finished my 2 month summer internship at TechCorp as a Software Engineer Intern! 🚀 Learnt a ton about cloud scalability and microservices. Huge thanks to GITA's placement cell for the lead!",
-    image: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1200&q=80",
+    content: "Registrations are now live for 'CodeQuest 2026' Hackathon! 🚀 Open to all engineering branches (CSE, IT, ECE, EE, ME, Civil). 36 hours of software and IoT development with mentorship from industry alumni. Form your teams in the Communities tab!",
+    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80",
     likes: 142,
     comments: [
       {
         id: "c1_1",
-        userName: "Priya Das",
-        userAvatar: MOCK_USERS.priya.avatar,
-        text: "Congratulations Arjun! TechCorp is amazing. Let's catch up and talk about their tech stack!",
+        userName: "Arnav Dutta",
+        userAvatar: "https://ui-avatars.com/api/?name=Arnav+Dutta&background=7A1A22&color=fff&bold=true",
+        text: "Excited for this! Looking for 2 teammates proficient in React and FastAPI. Connect with me in the CSE community!",
         time: "1h ago"
-      },
-      {
-        id: "c1_2",
-        userName: "Ananya Rao",
-        userAvatar: MOCK_USERS.ananya.avatar,
-        text: "Super cool! Did you work on Docker and Kubernetes?",
-        time: "30m ago"
       }
     ],
     liked: false,
     bookmarked: false,
-    tag: "Internship"
+    tag: "Event"
   },
   {
     id: "p2",
-    user: MOCK_USERS.sarah,
+    user: {
+      id: "placementCell",
+      name: "GITA Training & Placement Cell",
+      avatar: "https://ui-avatars.com/api/?name=Placement+Cell&background=7A1A22&color=fff&bold=true",
+      details: "Placement Directorate • GITA Autonomous",
+      role: "admin"
+    },
     time: "5h ago",
-    content: "GITA Cultural Fest 2024 was absolutely amazing! 🎨 The talent on display this year was next level. So proud of the events committee for pulling this off seamlessly. Who's ready for the after-movie?",
-    image: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80",
-    likes: 89,
-    comments: [
-      {
-        id: "c2_1",
-        userName: "Rohan Singh",
-        userAvatar: MOCK_USERS.rohan.avatar,
-        text: "The music band was incredible! Best fest so far.",
-        time: "4h ago"
-      }
-    ],
+    content: "Placement Briefing: Upcoming on-campus recruitment assessments for 3rd and 4th-year students (TCS Digital, HighRadius, Infosys). Ensure your resume and aggregate SGPA/CGPA records are verified in your profile dashboard.",
+    image: null,
+    likes: 215,
+    comments: [],
     liked: false,
-    bookmarked: false,
-    tag: "Achievement"
+    bookmarked: true,
+    tag: "Internship"
   },
   {
     id: "p3",
-    user: MOCK_USERS.priya,
+    user: {
+      id: "examCell",
+      name: "Controller of Examinations",
+      avatar: "https://ui-avatars.com/api/?name=Exam+Cell&background=0F172A&color=fff&bold=true",
+      details: "Academic Registry • GITA Autonomous",
+      role: "admin"
+    },
     time: "1d ago",
-    content: "Compiled all study notes and previous year questions for the upcoming Computer Networks end-semester exam. Let me know if you spot any errors. Good luck everyone! 📚✨",
+    content: "Autonomous Mid-Term Examination question paper formats and seating plans are published. Mandatory 75% attendance rule is strictly enforced for admit card eligibility. Track your current attendance in the Resources tab.",
     image: null,
-    likes: 210,
-    comments: [
-      {
-        id: "c3_1",
-        userName: "Arjun Mehta",
-        userAvatar: MOCK_USERS.arjun.avatar,
-        text: "This is a lifesaver Priya, thank you so much!",
-        time: "22h ago"
-      }
-    ],
+    likes: 189,
+    comments: [],
     liked: true,
-    bookmarked: true,
+    bookmarked: false,
     tag: "ExamPrep"
   }
 ];
@@ -291,8 +264,8 @@ export const INITIAL_COMMUNITIES = {
         { id: "cse_a2", title: "Guest Lecture: Quantum Computing", content: "Join us for an online webinar by Dr. A. Sen on June 25th at 3 PM. Registration link is on GITA Connect.", date: "2026-06-18", author: "Dept Coordinator" }
       ],
       discussions: [
-        { id: "cse_d1", author: "Aman Gupta", content: "Can anyone share resources for learning Operating Systems concepts? Especially CPU scheduling algorithms.", replies: 4, date: "1h ago" },
-        { id: "cse_d2", author: "Riya Sen", content: "Has anyone started working on the Compiler Design assignment? Struggling with the parser generator part.", replies: 2, date: "3h ago" }
+        { id: "cse_d1", author: "CSE Guild Mentor", content: "Can anyone share resources for learning Operating Systems concepts? Especially CPU scheduling algorithms.", replies: 4, date: "1h ago" },
+        { id: "cse_d2", author: "Academic Coordinator", content: "Has anyone started working on the Compiler Design assignment? Struggling with the parser generator part.", replies: 2, date: "3h ago" }
       ],
       events: [
         { id: "cse_e1", title: "WebDev Hackathon 2026", date: "June 28", time: "10:00 AM", location: "Lab 4", desc: "Build a responsive web application in 8 hours. Prizes for best UI and functionality!" }
@@ -312,7 +285,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "csit_a1", title: "End-Semester Lab Audits", content: "IT Lab 2 audits start tomorrow. Ensure all project files are checked in and ready.", date: "2026-06-21", author: "Lab In-charge" }
       ],
       discussions: [
-        { id: "csit_d1", author: "Vikram Seth", content: "Which DBMS should we use for our project? MongoDB or PostgreSQL?", replies: 6, date: "5h ago" }
+        { id: "csit_d1", author: "IT Student Lead", content: "Which DBMS should we use for our project? MongoDB or PostgreSQL?", replies: 6, date: "5h ago" }
       ],
       events: [
         { id: "csit_e1", title: "Database Schema Sprint", date: "July 02", time: "02:00 PM", location: "IT Lab 3", desc: "A practical challenge in normalizing databases and solving queries." }
@@ -332,7 +305,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "aiml_a1", title: "AI GPU Server Access Credentials", content: "Register teams for model training on the departmental H100 cluster. Access tokens will be shared via email.", date: "2026-06-19", author: "AI Lab Head" }
       ],
       discussions: [
-        { id: "aiml_d1", author: "Preeti Patil", content: "Fine-tuning llama models on 16GB RAM is failing. Any optimization tips like LoRA configurations?", replies: 8, date: "30m ago" }
+        { id: "aiml_d1", author: "AI Research Mentor", content: "Fine-tuning llama models on 16GB RAM is failing. Any optimization tips like LoRA configurations?", replies: 8, date: "30m ago" }
       ],
       events: [
         { id: "aiml_e1", title: "Kaggle Prediction League", date: "July 05", time: "09:00 AM", location: "AI Seminar Hall", desc: "Compete to build the most accurate predictive model using our dataset." }
@@ -352,7 +325,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "mca_a1", title: "MCA Placement Drive Pre-evaluation", content: "Pre-assessment test for upcoming tech placement drive will happen on Saturday at 10 AM.", date: "2026-06-20", author: "Placement Cell" }
       ],
       discussions: [
-        { id: "mca_d1", author: "Samir Roy", content: "Who has the Android Studio setup file for the lab? Need it for homework.", replies: 3, date: "4h ago" }
+        { id: "mca_d1", author: "Mobile Dev Coordinator", content: "Who has the Android Studio setup file for the lab? Need it for homework.", replies: 3, date: "4h ago" }
       ],
       events: [
         { id: "mca_e1", title: "Android App Design Workshop", date: "June 30", time: "11:00 AM", location: "Lab 1", desc: "Hands-on experience building mobile apps from scratch using Kotlin." }
@@ -372,7 +345,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "mba_a1", title: "Case Study Challenge Guidelines", content: "Case studies on logistics strategy have been published. Group assignments are posted in the HOD portal.", date: "2026-06-21", author: "Prof. Das" }
       ],
       discussions: [
-        { id: "mba_d1", author: "Nikhil Joshi", content: "Struggling with marketing strategy analysis for the startup case. Any advice?", replies: 2, date: "6h ago" }
+        { id: "mba_d1", author: "Entrepreneurship Mentor", content: "Struggling with marketing strategy analysis for the startup case. Any advice?", replies: 2, date: "6h ago" }
       ],
       events: [
         { id: "mba_e1", title: "Mock Pitch and Venture Capital Meet", date: "July 08", time: "10:00 AM", location: "MBA Auditorium", desc: "Pitch your business model to mock investors and receive feedback." }
@@ -392,7 +365,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "ee_a1", title: "Electrical Lab Safety Guidelines", content: "Please read safety rules before using high voltage machines. Closed shoes are mandatory.", date: "2026-06-19", author: "Lab Superintendent" }
       ],
       discussions: [
-        { id: "ee_d1", author: "Megha Sen", content: "Can someone help explain the transient response of second-order RL circuits?", replies: 1, date: "1d ago" }
+        { id: "ee_d1", author: "EE Technical Representative", content: "Can someone help explain the transient response of second-order RL circuits?", replies: 1, date: "1d ago" }
       ],
       events: [
         { id: "ee_e1", title: "Simulink Power Grid Challenge", date: "July 01", time: "02:30 PM", location: "Simulation Lab", desc: "Model a resilient power grid and evaluate stability against simulated load drops." }
@@ -412,7 +385,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "eee_a1", title: "VLSI Kits Collection", content: "Students can collect their custom VLSI hardware design kits from Lab 5 starting tomorrow.", date: "2026-06-20", author: "VLSI Coordinator" }
       ],
       discussions: [
-        { id: "eee_d1", author: "Rahul Dev", content: "Stuck in writing assembly code for 8086 interrupt vectoring. Anyone free to help?", replies: 5, date: "2h ago" }
+        { id: "eee_d1", author: "VLSI Society Lead", content: "Stuck in writing assembly code for 8086 interrupt vectoring. Anyone free to help?", replies: 5, date: "2h ago" }
       ],
       events: [
         { id: "eee_e1", title: "Arduino & IoT Boot Camp", date: "June 27", time: "09:30 AM", location: "IoT Lab", desc: "Build home automation sensors and configure them to send telemetry data to a cloud dashboard." }
@@ -432,7 +405,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "mech_a1", title: "CAD Modeling Challenge", content: "Submit your SolidWorks designs for the drone chassis by Monday. Files must be in STL format.", date: "2026-06-18", author: "Dr. Tripathy" }
       ],
       discussions: [
-        { id: "mech_d1", author: "Abhishek Ray", content: "Which simulation parameters are best for aerodynamics drag evaluation in ANSYS?", replies: 3, date: "1d ago" }
+        { id: "mech_d1", author: "SAE Racing Lead", content: "Which simulation parameters are best for aerodynamics drag evaluation in ANSYS?", replies: 3, date: "1d ago" }
       ],
       events: [
         { id: "mech_e1", title: "Formula Student Design Review", date: "July 04", time: "11:00 AM", location: "Automobile Lab", desc: "Review of GITA racing car design, structural testing, and aero dynamics specs." }
@@ -452,7 +425,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "civil_a1", title: "Surveying Field Work", content: "Attendance is compulsory for tomorrow's structural leveling field work at the outer campus.", date: "2026-06-21", author: "Field Coordinator" }
       ],
       discussions: [
-        { id: "civil_d1", author: "Neha Mishra", content: "What is the concrete strength testing ratio standard we should follow for our lab report?", replies: 2, date: "4h ago" }
+        { id: "civil_d1", author: "Civil Projects Mentor", content: "What is the concrete strength testing ratio standard we should follow for our lab report?", replies: 2, date: "4h ago" }
       ],
       events: [
         { id: "civil_e1", title: "Bridge Design Competition", date: "June 29", time: "01:00 PM", location: "Civil Drafting Hall", desc: "Design a bridge model using balsa wood. Models will be load-tested to structural collapse." }
@@ -473,7 +446,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "lang_a1", title: "Annual Debate Registrations", content: "Registrations are open for GITA Verbal Duel 2026. Topics include AI Ethics and Global Economics.", date: "2026-06-20", author: "Club President" }
       ],
       discussions: [
-        { id: "lang_d1", author: "Karan Kumar", content: "Are there any writing workshops scheduled for this month? I want to practice essay writing.", replies: 2, date: "1d ago" }
+        { id: "lang_d1", author: "Debate Society Lead", content: "Are there any writing workshops scheduled for this month? I want to practice essay writing.", replies: 2, date: "1d ago" }
       ],
       events: [
         { id: "lang_e1", title: "Inter-college English Debate", date: "July 03", time: "10:00 AM", location: "Seminar Hall 1", desc: "A debating competition involving top colleges in the state." }
@@ -492,7 +465,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "dance_a1", title: "Vasant Fest Dance Auditions", content: "Group and solo auditions will take place this Thursday at the central amphitheater.", date: "2026-06-21", author: "Dance Secretary" }
       ],
       discussions: [
-        { id: "dance_d1", author: "Shalini Roy", content: "Should we prepare a hip-hop routine or classical fusion for the upcoming cultural fest?", replies: 7, date: "4h ago" }
+        { id: "dance_d1", author: "Choreography Coordinator", content: "Should we prepare a hip-hop routine or classical fusion for the upcoming cultural fest?", replies: 7, date: "4h ago" }
       ],
       events: [
         { id: "dance_e1", title: "Street Dance Face-off", date: "June 28", time: "05:00 PM", location: "Open Air Theater", desc: "An open street dance battle with energetic musical beats." }
@@ -511,7 +484,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "music_a1", title: "Acoustic Jam Night", content: "Sign up if you want to perform solo or in a duet. Instruments will be provided.", date: "2026-06-20", author: "Music Coordinator" }
       ],
       discussions: [
-        { id: "music_d1", author: "Dev Sharma", content: "Looking for a bassist for our college rock band. Let me know if anyone is interested!", replies: 4, date: "3h ago" }
+        { id: "music_d1", author: "Music Club Secretary", content: "Looking for a bassist for our college rock band. Let me know if anyone is interested!", replies: 4, date: "3h ago" }
       ],
       events: [
         { id: "music_e1", title: "Symphony Jam Sessions", date: "July 01", time: "04:30 PM", location: "Music Room", desc: "A casual jamming session open for all vocalists and instrument players." }
@@ -530,7 +503,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "drama_a1", title: "Nukkad Natak Script Auditions", content: "Script readings for our next social awareness play will happen this evening at the old lawns.", date: "2026-06-21", author: "Drama Director" }
       ],
       discussions: [
-        { id: "drama_d1", author: "Pooja Das", content: "Who has experience with stage lighting? We need a lighting designer for the play.", replies: 1, date: "2d ago" }
+        { id: "drama_d1", author: "Theater Director", content: "Who has experience with stage lighting? We need a lighting designer for the play.", replies: 1, date: "2d ago" }
       ],
       events: [
         { id: "drama_e1", title: "Stage Play: The Silent Voice", date: "July 06", time: "06:30 PM", location: "Main Auditorium", desc: "A dramatic presentation focusing on environmental degradation and climate action." }
@@ -549,7 +522,7 @@ export const INITIAL_COMMUNITIES = {
         { id: "sports_a1", title: "Annual Football Tournament Draw", content: "Team list and match brackets have been drawn. Check the sports board near the stadium.", date: "2026-06-20", author: "Sports Secretary" }
       ],
       discussions: [
-        { id: "sports_d1", author: "Rohan Das", content: "Is the basketball court open tonight for practice? The finals are this week.", replies: 4, date: "1h ago" }
+        { id: "sports_d1", author: "Sports Secretary", content: "Is the basketball court open tonight for practice? The finals are this week.", replies: 4, date: "1h ago" }
       ],
       events: [
         { id: "sports_e1", title: "Annual Sports Meet Finals", date: "June 24", time: "09:00 AM", location: "Stadium", desc: "Track events, 100m sprint, football finals, and cup presentation." }

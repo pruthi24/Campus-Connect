@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from './Icons';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { updateProfile } from 'firebase/auth';
+import { setDoc } from 'firebase/firestore';
 
 export default function ProfileDashboard({
   currentUser,
-  setCurrentUser,
+  updateUserProfile,
   theme,
   setTheme,
   addNotification,
@@ -23,13 +27,14 @@ export default function ProfileDashboard({
   // Local states for editing profile overview
   const [isEditingOverview, setIsEditingOverview] = useState(false);
   const [editName, setEditName] = useState(currentUser.name || '');
-  const [editRollNumber, setEditRollNumber] = useState(currentUser.rollNumber || 'GITA/CS/2022/' + Math.floor(Math.random() * 900 + 100));
-  const [editBranch, setEditBranch] = useState(currentUser.branch || 'Computer Science');
-  const [editYear, setEditYear] = useState(currentUser.year || '4th Year');
-  const [editEmail, setEditEmail] = useState(currentUser.email || currentUser.id + '@gita.edu');
+  const [editUsername, setEditUsername] = useState(currentUser.username || `@${(currentUser.name || 'arnav_dutta').toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
+  const [editRollNumber, setEditRollNumber] = useState(currentUser.rollNumber || 'GITA/CSE/2023/042');
+  const [editBranch, setEditBranch] = useState(currentUser.branch || 'Computer Science & Engineering');
+  const [editYear, setEditYear] = useState(currentUser.year || '3rd Year');
+  const [editEmail, setEditEmail] = useState(currentUser.email || (currentUser.id ? `${currentUser.id}@gita.edu` : 'arnav.dutta@gita.edu'));
   const [editLinkedin, setEditLinkedin] = useState(currentUser.linkedin || '');
   const [editGithub, setEditGithub] = useState(currentUser.github || '');
-  const [editTagline, setEditTagline] = useState(currentUser.tagline || 'Student at GITA Connect');
+  const [editTagline, setEditTagline] = useState(currentUser.tagline || 'Student at GITA Autonomous College');
 
   // Bio state
   const [bioText, setBioText] = useState(currentUser.bio || '');
@@ -91,13 +96,15 @@ export default function ProfileDashboard({
   // Load current user data when user changes
   useEffect(() => {
     setEditName(currentUser.name || '');
-    setEditRollNumber(currentUser.rollNumber || 'GITA/CS/2022/108');
+    const cleanHandle = currentUser.username || `@${(currentUser.name || 'arnav_dutta').toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    setEditUsername(cleanHandle);
+    setEditRollNumber(currentUser.rollNumber || 'GITA/CSE/2023/042');
     setEditBranch(currentUser.branch || 'Computer Science & Engineering');
-    setEditYear(currentUser.year || '4th Year');
-    setEditEmail(currentUser.email || currentUser.id + '@gita.edu');
+    setEditYear(currentUser.year || '3rd Year');
+    setEditEmail(currentUser.email || (currentUser.id ? `${currentUser.id}@gita.edu` : 'arnav.dutta@gita.edu'));
     setEditLinkedin(currentUser.linkedin || '');
     setEditGithub(currentUser.github || '');
-    setEditTagline(currentUser.tagline || 'Student at GITA Connect');
+    setEditTagline(currentUser.tagline || 'Student at GITA Autonomous College');
     setBioText(currentUser.bio || '');
     if (currentUser.achievements) {
       setAchievements(currentUser.achievements);
@@ -110,13 +117,17 @@ export default function ProfileDashboard({
     }
   }, [currentUser]);
 
-  // Sync state back to parent App state
-  const syncUserChanges = (updatedFields) => {
-    const updatedUser = {
-      ...currentUser,
-      ...updatedFields
-    };
-    setCurrentUser(updatedUser);
+  // Sync state back to AuthContext, Firebase Auth, and localStorage
+  const syncUserChanges = async (updatedFields) => {
+    if (updateUserProfile) {
+      await updateUserProfile(updatedFields);
+    } else {
+      try {
+        const merged = { ...currentUser, ...updatedFields, lastEditedAt: Date.now() };
+        localStorage.setItem('campus_connect_profile', JSON.stringify(merged));
+      } catch (e) {}
+    }
+    addNotification('Profile updated and saved permanently! ✅', 'general');
   };
 
   // Completion calculation
@@ -138,10 +149,12 @@ export default function ProfileDashboard({
   const { score: completionScore, checks: completionChecks } = getCompletionStats();
 
   // Save profile overview edits
-  const handleSaveOverview = (e) => {
+  const handleSaveOverview = async (e) => {
     e.preventDefault();
+    const cleanUsername = editUsername.startsWith('@') ? editUsername : `@${editUsername}`;
     const updatedFields = {
       name: editName,
+      username: cleanUsername,
       rollNumber: editRollNumber,
       branch: editBranch,
       year: editYear,
@@ -149,11 +162,10 @@ export default function ProfileDashboard({
       linkedin: editLinkedin,
       github: editGithub,
       tagline: editTagline,
-      details: `${editYear}, ${editBranch.includes('CS') ? 'CS' : editBranch.slice(0, 3).toUpperCase()}`
+      details: `${editYear}, ${editBranch.includes('CS') ? 'CSE' : editBranch.slice(0, 3).toUpperCase()}`
     };
-    syncUserChanges(updatedFields);
+    await syncUserChanges(updatedFields);
     setIsEditingOverview(false);
-    addNotification('Profile overview updated successfully!', 'general');
   };
 
   // Bio Actions
@@ -331,8 +343,11 @@ export default function ProfileDashboard({
             </label>
           </div>
           <h3>{currentUser.name}</h3>
-          <p className="profile-badge-tag">{currentUser.badge || 'New Member'}</p>
-          <span className="profile-details-small">{currentUser.details}</span>
+          <p className="profile-handle" style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '2px 0 6px 0', fontWeight: '500' }}>
+            {currentUser.username || `@${(currentUser.name || 'student').toLowerCase().replace(/[^a-z0-9]/g, '_')}`}
+          </p>
+          <p className="profile-badge-tag">{currentUser.badge || 'Elite Contributor'}</p>
+          <span className="profile-details-small">{currentUser.details || `${currentUser.year || '3rd Year'}, ${currentUser.branch || 'CSE'}`}</span>
         </div>
 
         {/* Profile Completion Meter */}
@@ -430,6 +445,17 @@ export default function ProfileDashboard({
                         value={editName} 
                         onChange={(e) => setEditName(e.target.value)} 
                         className="form-control"
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Username / Handle</label>
+                      <input 
+                        type="text" 
+                        value={editUsername} 
+                        onChange={(e) => setEditUsername(e.target.value)} 
+                        className="form-control"
+                        placeholder="@arnav_dutta"
                       />
                     </div>
                     <div className="form-group">
@@ -523,6 +549,10 @@ export default function ProfileDashboard({
                   </div>
 
                   <div className="grid-details mt-24">
+                    <div className="detail-item">
+                      <span className="detail-label">Username</span>
+                      <span className="detail-value">{currentUser.username || editUsername}</span>
+                    </div>
                     <div className="detail-item">
                       <span className="detail-label">Roll Number</span>
                       <span className="detail-value">{editRollNumber}</span>

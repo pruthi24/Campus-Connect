@@ -1,3 +1,5 @@
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import React, { useState } from 'react';
 import * as Icons from './Icons';
 import {
@@ -7,7 +9,7 @@ import {
   FREQUENTLY_REPORTED_ISSUES
 } from '../mockData';
 
-export default function Complaints({ complaints, setComplaints }) {
+export default function Complaints({ complaints, setComplaints, currentUser }) {
   // Navigation State
   const [activeSubTab, setActiveSubTab] = useState('raise'); // 'raise' | 'my' | 'anonymous' | 'reviewed' | 'resolved'
 
@@ -120,6 +122,9 @@ export default function Complaints({ complaints, setComplaints }) {
 
     const newTicket = {
       id: ticketId,
+      userId: currentUser?.id || 'guest',
+      userName: isAnonymous ? 'Anonymous Student' : (currentUser?.name || 'Student'),
+      userAvatar: isAnonymous ? null : (currentUser?.avatar || null),
       title,
       category,
       urgency: priority,
@@ -129,11 +134,22 @@ export default function Complaints({ complaints, setComplaints }) {
       location: location || 'Not Specified',
       assignedDept: getAssignedDeptForCategory(category),
       lastUpdated: 'Complaint registered and queued for verification.',
-      evidence: uploadedFile ? uploadedFile.name : null
+      evidence: uploadedFile ? uploadedFile.name : null,
+      createdAt: new Date().toISOString()
     };
 
     // Append to own complaints list
     setComplaints([newTicket, ...complaints]);
+
+    // Persist to Firestore
+    try {
+      addDoc(collection(db, 'complaints'), {
+        ...newTicket,
+        serverCreated: serverTimestamp()
+      }).catch(err => console.warn('Firestore ticket sync:', err));
+    } catch(e) {
+      console.warn('Complaints addDoc error:', e);
+    }
 
     // If anonymous, add to public anonymous complaints too
     if (isAnonymous) {

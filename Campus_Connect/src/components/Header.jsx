@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from './Icons';
+import { useAuth } from '../context/AuthContext';
 
 export default function Header({
   activeTab,
   setActiveTab,
   setResourceFilter,
   currentUser,
-  setCurrentUser,
-  allUsers,
   theme,
   notifications,
   clearNotifications,
   setActiveProfileSection // callback to change dashboard section
 }) {
+  const { logout } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showSwitchSubmenu, setShowSwitchSubmenu] = useState(false);
 
   const navItems = [
     { id: 'home', label: 'Home' },
@@ -28,15 +27,6 @@ export default function Header({
     { id: 'resources', label: 'Resources' }
   ];
 
-  const handleUserSwitch = (userId) => {
-    setCurrentUser(allUsers[userId]);
-    setShowProfileDropdown(false);
-    setShowSwitchSubmenu(false);
-    if (setActiveProfileSection) {
-      setActiveProfileSection('overview');
-    }
-  };
-
   const handleMenuClick = (section) => {
     setActiveTab('profile');
     if (setActiveProfileSection) {
@@ -45,15 +35,14 @@ export default function Header({
     setShowProfileDropdown(false);
   };
 
-  const handleLogout = () => {
-    const confirmLogout = window.confirm("Are you sure you want to logout? (This will reset session states)");
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm("Are you sure you want to logout?");
     if (confirmLogout) {
-      // Set to first user in list or reset
-      const firstUser = Object.keys(allUsers)[0];
-      setCurrentUser(allUsers[firstUser]);
-      setActiveTab('home');
-      setShowProfileDropdown(false);
-      alert("Logged out. Reset to default user profile.");
+      try {
+        await logout();
+      } catch(err) {
+        console.error("Error logging out", err);
+      }
     }
   };
 
@@ -211,15 +200,14 @@ export default function Header({
               onClick={() => {
                 setShowProfileDropdown(!showProfileDropdown);
                 setShowNotifications(false);
-                setShowSwitchSubmenu(false);
               }}
             >
               <img
-                src={currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80"}
-                alt={currentUser.name}
+                src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Student')}&background=7A1A22&color=fff&bold=true`}
+                alt={currentUser?.name || 'User'}
                 className="profile-avatar"
               />
-              <span className="profile-name-text">{currentUser.name.split(' ')[0]}</span>
+              <span className="profile-name-text">{(currentUser?.name || 'Student').split(' ')[0]}</span>
             </button>
 
             <AnimatePresence>
@@ -233,13 +221,13 @@ export default function Header({
                 >
                   <div className="dropdown-header user-header glass-header">
                     <img
-                      src={currentUser.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80"}
-                      alt={currentUser.name}
+                      src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Student')}&background=7A1A22&color=fff&bold=true`}
+                      alt={currentUser?.name || 'User'}
                       className="dropdown-avatar"
                     />
                     <div>
-                      <h4>{currentUser.name}</h4>
-                      <p className="user-role">{currentUser.details}</p>
+                      <h4>{currentUser?.name || 'Student'}</h4>
+                      <p className="user-role">{currentUser?.username || currentUser?.details || 'Student'}</p>
                     </div>
                   </div>
                   
@@ -285,34 +273,7 @@ export default function Header({
                         <span>Appearance ({theme === 'dark' ? 'Dark' : 'Light'})</span>
                       </button>
 
-                      {/* Switch User Toggle Option */}
-                      <button 
-                        className="menu-item-row"
-                        onClick={() => setShowSwitchSubmenu(!showSwitchSubmenu)}
-                      >
-                        <Icons.Users size={16} className="menu-icon" />
-                        <span>Switch Account {showSwitchSubmenu ? '▲' : '▼'}</span>
-                      </button>
 
-                      {showSwitchSubmenu && (
-                        <div className="submenu-switch-list animate-slide-in">
-                          {Object.values(allUsers)
-                            .filter((u) => u.id !== currentUser.id)
-                            .map((u) => (
-                              <button
-                                key={u.id}
-                                className="submenu-switch-row"
-                                onClick={() => handleUserSwitch(u.id)}
-                              >
-                                <img src={u.avatar} alt={u.name} className="submenu-avatar" />
-                                <div className="submenu-info">
-                                  <span className="submenu-name">{u.name}</span>
-                                  <span className="submenu-role">{u.details}</span>
-                                </div>
-                              </button>
-                            ))}
-                        </div>
-                      )}
 
                       <hr className="menu-divider" />
 

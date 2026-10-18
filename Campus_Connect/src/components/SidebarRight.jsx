@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import * as Icons from './Icons';
-import { MOCK_USERS } from '../mockData';
 
 export default function SidebarRight({ events, currentUser, showCalendarModal, setShowCalendarModal }) {
   const [selectedEvent, setSelectedEvent] = useState(null);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from './Icons';
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Feed({
   posts,
@@ -18,6 +20,7 @@ export default function Feed({
   const [expandedComments, setExpandedComments] = useState({}); // { [postId]: boolean }
   const [toastMessage, setToastMessage] = useState('');
   const [localSearch, setLocalSearch] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   // Poll state variables
   const [showPollCreator, setShowPollCreator] = useState(false);
@@ -50,7 +53,7 @@ export default function Feed({
   };
 
   // Handle post creation
-  const handleCreatePost = (e) => {
+  const handleCreatePost = async (e) => {
     e.preventDefault();
     
     // Check if there's any content
@@ -69,14 +72,15 @@ export default function Feed({
     }
 
     const newPost = {
-      id: `p_new_${Date.now()}`,
       user: {
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        details: currentUser.details,
-        role: currentUser.role
+        id: currentUser?.id || '',
+        name: currentUser?.name || '',
+        avatar: currentUser?.avatar || '',
+        details: currentUser?.details || '',
+        role: currentUser?.role || 'user'
       },
       time: 'Just now',
+      createdAt: serverTimestamp(),
       content: content || (showPollCreator ? `📊 Poll: ${pollQuestion}` : showEventCreator ? `📅 Campus Event Announcement` : ''),
       image: selectedPhotoUrl || null,
       likes: 0,
@@ -99,7 +103,14 @@ export default function Feed({
       } : null
     };
 
-    setPosts([newPost, ...posts]);
+    try {
+      await addDoc(collection(db, 'posts'), newPost);
+      triggerToast('Post published successfully! 🚀');
+    } catch(err) {
+      console.error(err);
+      triggerToast('Error posting');
+    }
+
     setPostText('');
     setActivePostTag('');
     setSelectedPhotoUrl('');
@@ -164,21 +175,29 @@ export default function Feed({
     triggerToast('Vote cast! 🗳️');
   };
 
-  // Upvote/Like toggle
-  const handleLike = (postId) => {
+  // Upvote/Like toggle with Firestore sync
+  const handleLike = async (postId) => {
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+    const newLiked = !targetPost.liked;
+    const newLikes = newLiked ? (targetPost.likes || 0) + 1 : Math.max(0, (targetPost.likes || 0) - 1);
+
     setPosts(
       posts.map((post) => {
         if (post.id === postId) {
-          const liked = !post.liked;
-          return {
-            ...post,
-            liked,
-            likes: liked ? post.likes + 1 : post.likes - 1
-          };
+          return { ...post, liked: newLiked, likes: newLikes };
         }
         return post;
       })
     );
+
+    try {
+      if (postId && !postId.startsWith('p_mock_') && !postId.startsWith('p_new_')) {
+        await updateDoc(doc(db, 'posts', postId), { likes: newLikes });
+      }
+    } catch (err) {
+      console.warn('Like sync error:', err);
+    }
   };
 
   // Bookmark toggle
@@ -197,9 +216,11 @@ export default function Feed({
 
   // Share link
   const handleShare = (postId) => {
-    const mockUrl = `https://gita-connect.edu/posts/${postId}`;
-    navigator.clipboard.writeText(mockUrl).then(() => {
+    const shareUrl = `${window.location.origin}/?post=${postId}`;
+    navigator.clipboard.writeText(shareUrl).then(() => {
       triggerToast('Post link copied to clipboard! 📋');
+    }).catch(() => {
+      triggerToast('Post link ready! 📋');
     });
   };
 
@@ -217,6 +238,9 @@ export default function Feed({
     const commentText = commentInputs[postId] || '';
     if (!commentText.trim()) return;
 
+    const finalName = currentUser?.name || 'Student';
+    const finalAvatar = currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=7A1A22&color=fff&bold=true`;
+
     setPosts(
       posts.map((post) => {
         if (post.id === postId) {
@@ -226,8 +250,8 @@ export default function Feed({
               ...post.comments,
               {
                 id: `c_new_${Date.now()}`,
-                userName: currentUser.name,
-                userAvatar: currentUser.avatar,
+                userName: finalName,
+                userAvatar: finalAvatar,
                 text: commentText,
                 time: 'Just now'
               }
@@ -304,7 +328,7 @@ export default function Feed({
             />
             <div className="input-area">
               <textarea
-                placeholder="What's happening at GITA today?"
+                placeholder={currentUser?.name ? `What's happening at GITA today, ${currentUser.name.split(' ')[0]}?` : "What's happening at GITA today?"}
                 value={postText}
                 onChange={(e) => setPostText(e.target.value)}
                 rows={3}
@@ -523,10 +547,43 @@ export default function Feed({
                     </span>
                   </div>
                 </div>
-                <div className="post-options-menu">
-                  <button className="post-options-btn">
+                <div className="post-options-menu" style={{ position: 'relative' }}>
+                  <button 
+                    className="post-options-btn"
+                    onClick={() => setActiveMenuId(activeMenuId === post.id ? null : post.id)}
+                  >
                     <Icons.MoreHorizontal size={18} />
                   </button>
+                  {activeMenuId === post.id && (
+                    <div className="options-dropdown animate-slide-in" style={{ position: 'absolute', right: 0, top: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', zIndex: 10, padding: '8px 0', minWidth: '140px', boxShadow: 'var(--shadow-md)' }}>
+                      <button 
+                        onClick={() => { triggerToast("Edit coming soon"); setActiveMenuId(null); }} 
+                        style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '13.5px', fontWeight: '600' }}
+                      >
+                        Edit Post
+                      </button>
+                      
+                      {(currentUser?.id === post.user?.id || currentUser?.role === 'admin') && (
+                        <button 
+                          onClick={async () => {
+                            if (window.confirm("Are you sure you want to delete this post?")) {
+                              try {
+                                await deleteDoc(doc(db, 'posts', post.id));
+                                triggerToast("Post deleted successfully");
+                              } catch(err) {
+                                console.error(err);
+                                triggerToast('Error deleting post');
+                              }
+                            }
+                            setActiveMenuId(null);
+                          }} 
+                          style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: '13.5px', fontWeight: '600' }}
+                        >
+                          Delete Post
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

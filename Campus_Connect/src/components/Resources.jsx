@@ -53,8 +53,21 @@ export default function Resources({
     setDownloading(id);
     setTimeout(() => {
       setDownloading(null);
-      alert(`Downloaded file: ${fileName}`);
-    }, 1500);
+      try {
+        const fileContent = `GITA AUTONOMOUS COLLEGE, BHUBANESWAR\nAcademic Resource Document\n\nFilename: ${fileName}\nCourse & Syllabus Reference\nDepartment: CSE / IT / ECE\nStatus: Official Institutional Material (2025-26)\n\nComplete course guidelines, recommended textbooks, and question paper solutions.`;
+        const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.warn('Download error:', err);
+      }
+    }, 800);
   };
 
   // Filter resources based on category and search query

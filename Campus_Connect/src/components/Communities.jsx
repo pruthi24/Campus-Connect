@@ -41,7 +41,7 @@ export default function Communities({ currentUser }) {
 
     const newDiscussionPost = {
       id: `custom_post_${Date.now()}`,
-      author: currentUser.name,
+      author: currentUser?.name || 'Student',
       content: newPostText,
       replies: 0,
       date: 'Just now'

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+Campus_Connect/node_modules/
+
+# Production build outputs
+dist/
+Campus_Connect/dist/
+dist-ssr/
+*.local
+
+# Environment & credentials
+.env
+.env.*
+!.env.example
+Campus_Connect/.env
+Campus_Connect/.env.*
+!Campus_Connect/.env.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

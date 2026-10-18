@@ -12,11 +12,25 @@ export default function NoticeBoard({ notices, viewNotice, onViewAll }) {
 
   const handleDownload = (e) => {
     e.stopPropagation();
+    if (!selectedNotice?.attachment) return;
     setDownloading(true);
     setTimeout(() => {
       setDownloading(false);
-      alert(`Downloaded: ${selectedNotice.attachment}`);
-    }, 1500);
+      try {
+        const docText = `GITA AUTONOMOUS COLLEGE, BHUBANESWAR\nOfficial Campus Notice Attachment\n\nTitle: ${selectedNotice.title}\nCategory: ${selectedNotice.type}\nPublished: ${selectedNotice.time}\n\n${selectedNotice.content}\n\nAuthorized by: Academic & Administrative Directorate, GITA Autonomous College`;
+        const blob = new Blob([docText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = selectedNotice.attachment;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.warn('Download error:', err);
+      }
+    }, 800);
   };
 
   return (
