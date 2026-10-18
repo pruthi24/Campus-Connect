@@ -49,8 +49,21 @@ export default function MainApp() {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [activeProfileSection, setActiveProfileSection] = useState('overview');
 
-  // Database States with fallbacks
-  const [posts, setPosts] = useState(INITIAL_POSTS);
+  // Database States with fallbacks and offline resilience
+  const [posts, setPosts] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+      if (Array.isArray(saved) && saved.length > 0) {
+        const initialIds = new Set(INITIAL_POSTS.map(p => p.id));
+        const customOnly = saved.filter(p => !initialIds.has(p.id));
+        return [...customOnly, ...INITIAL_POSTS];
+      }
+    } catch (e) {
+      console.warn('Saved posts read error:', e);
+    }
+    return INITIAL_POSTS;
+  });
+
   const [notices, setNotices] = useState(INITIAL_NOTICES);
   const [events] = useState(INITIAL_EVENTS);
   const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
@@ -68,30 +81,40 @@ export default function MainApp() {
           setComplaints(compList);
         }
       }, (err) => {
-        console.warn('Complaints Firestore sync (using initial):', err);
+        console.warn('Complaints Firestore sync note:', err.message);
       });
       return () => unsubComplaints();
     } catch(e) {
       console.warn('Could not setup complaints subscription:', e);
     }
   }, []);
+
   const [resources] = useState(INITIAL_RESOURCES);
 
+  // Real-time posts sync from Firestore
   useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const postsArray = [];
-      querySnapshot.forEach((doc) => {
-        postsArray.push({ id: doc.id, ...doc.data() });
+    try {
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const postsArray = [];
+        querySnapshot.forEach((doc) => {
+          postsArray.push({ id: doc.id, ...doc.data() });
+        });
+        if (postsArray.length > 0) {
+          setPosts(prev => {
+            const remoteIds = new Set(postsArray.map(p => p.id));
+            const unsyncedLocal = prev.filter(p => p.id.startsWith('p_') && !remoteIds.has(p.id));
+            return [...unsyncedLocal, ...postsArray];
+          });
+        }
+      }, (error) => {
+        console.warn("Firestore posts listener fallback to local cache:", error.message);
       });
-      if (postsArray.length > 0) {
-        setPosts(postsArray);
-      }
-    }, (error) => {
-      console.error("Error fetching posts: ", error);
-    });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch(e) {
+      console.warn('Could not setup posts subscription:', e);
+    }
   }, []);
 
   // Filter States

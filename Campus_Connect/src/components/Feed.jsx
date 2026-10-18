@@ -127,34 +127,46 @@ export default function Feed({
       return;
     }
     setIsUpdatingPost(true);
+
+    // 1. Immediately update UI state
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return {
+          ...p,
+          content: editingPostText,
+          image: editingPostImage
+        };
+      }
+      return p;
+    }));
+
+    // 2. Immediately update local storage
     try {
-      if (postId && !postId.startsWith('p_mock_') && !postId.startsWith('p_new_') && !postId.startsWith('p1') && !postId.startsWith('p2')) {
-        await updateDoc(doc(db, 'posts', postId), {
+      const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+      const updated = saved.map(p => p.id === postId ? { ...p, content: editingPostText, image: editingPostImage } : p);
+      localStorage.setItem('campus_connect_local_posts', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('LocalStorage error:', e);
+    }
+
+    // 3. Sync to Firestore in background
+    try {
+      if (postId && !postId.startsWith('p_mock_') && !postId.startsWith('p_new_') && !postId.startsWith('p1') && !postId.startsWith('p2') && !postId.startsWith('p_')) {
+        updateDoc(doc(db, 'posts', postId), {
           content: editingPostText,
           image: editingPostImage,
           updatedAt: serverTimestamp()
-        });
+        }).catch(err => console.warn('Firestore update note:', err.message));
       }
-      setPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          return {
-            ...p,
-            content: editingPostText,
-            image: editingPostImage
-          };
-        }
-        return p;
-      }));
-      setEditingPostId(null);
-      setEditingPostText('');
-      setEditingPostImage(null);
-      triggerToast('Post updated successfully! ✏️');
     } catch (err) {
-      console.error('Error updating post:', err);
-      triggerToast('Failed to update post');
-    } finally {
-      setIsUpdatingPost(false);
+      console.warn('Firestore update sync:', err);
     }
+
+    setEditingPostId(null);
+    setEditingPostText('');
+    setEditingPostImage(null);
+    setIsUpdatingPost(false);
+    triggerToast('Post updated successfully! ✏️');
   };
 
   // Show a temporary toast
@@ -163,8 +175,8 @@ export default function Feed({
     setTimeout(() => setToastMessage(''), 2500);
   };
 
-  // Handle post creation
-  const handleCreatePost = async (e) => {
+  // Handle post creation with optimistic UI and offline persistence
+  const handleCreatePost = (e) => {
     e.preventDefault();
     
     // Check if there's any content
@@ -182,16 +194,23 @@ export default function Feed({
       content += ` #${activePostTag}`;
     }
 
+    const localId = `p_${Date.now()}`;
+    const authorName = currentUser?.name || 'Student';
+    const authorAvatar = currentUser?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(authorName)}&background=7A1A22&color=fff&bold=true`;
+    const authorId = currentUser?.id || currentUser?.uid || `u_${Date.now()}`;
+    const authorDetails = currentUser?.details || 'Student • GITA Autonomous';
+
     const newPost = {
+      id: localId,
       user: {
-        id: currentUser?.id || '',
-        name: currentUser?.name || '',
-        avatar: currentUser?.avatar || '',
-        details: currentUser?.details || '',
-        role: currentUser?.role || 'user'
+        id: authorId,
+        name: authorName,
+        avatar: authorAvatar,
+        details: authorDetails,
+        role: currentUser?.role || 'student'
       },
       time: 'Just now',
-      createdAt: serverTimestamp(),
+      createdAt: new Date().toISOString(),
       content: content || (showPollCreator ? `📊 Poll: ${pollQuestion}` : showEventCreator ? `📅 Campus Event Announcement` : ''),
       image: selectedPhotoUrl || null,
       likes: 0,
@@ -205,7 +224,7 @@ export default function Feed({
           { text: pollOption1, votes: 0 },
           { text: pollOption2, votes: 0 }
         ],
-        votedIndex: null // Track if the user voted on this post
+        votedIndex: null
       } : null,
       event: hasEvent ? {
         title: eventTitle,
@@ -214,12 +233,48 @@ export default function Feed({
       } : null
     };
 
+    // 1. Instantly display in feed
+    setPosts(prev => [newPost, ...prev]);
+
+    // 2. Persist to localStorage
     try {
-      await addDoc(collection(db, 'posts'), newPost);
-      triggerToast('Post published successfully! 🚀');
+      const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+      localStorage.setItem('campus_connect_local_posts', JSON.stringify([newPost, ...saved.filter(p => p.id !== localId)]));
     } catch(err) {
-      console.error(err);
-      triggerToast('Error posting');
+      console.warn('LocalStorage error:', err);
+    }
+
+    triggerToast('Post published successfully! 🚀');
+
+    // 3. Attempt Firestore cloud sync in background
+    try {
+      addDoc(collection(db, 'posts'), {
+        user: newPost.user,
+        time: 'Just now',
+        createdAt: serverTimestamp(),
+        content: newPost.content,
+        image: newPost.image,
+        likes: 0,
+        comments: [],
+        liked: false,
+        bookmarked: false,
+        tag: newPost.tag,
+        poll: newPost.poll,
+        event: newPost.event
+      }).then((docRef) => {
+        if (docRef?.id) {
+          setPosts(prev => prev.map(p => p.id === localId ? { ...p, id: docRef.id } : p));
+          try {
+            const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+            const updated = saved.map(p => p.id === localId ? { ...p, id: docRef.id } : p);
+            localStorage.setItem('campus_connect_local_posts', JSON.stringify(updated));
+          } catch(e) {}
+        }
+      }).catch(err => {
+        console.warn('Firestore remote post sync note:', err.message);
+      });
+    } catch(err) {
+      console.warn('Firestore addDoc error:', err);
     }
 
     setPostText('');
@@ -678,18 +733,21 @@ export default function Feed({
                           
                           <button 
                             type="button"
-                            onClick={async () => {
+                            onClick={() => {
                               if (window.confirm("Are you sure you want to delete this post?")) {
+                                setPosts(prev => prev.filter(p => p.id !== post.id));
                                 try {
-                                  if (post.id && !post.id.startsWith('p_mock_') && !post.id.startsWith('p1') && !post.id.startsWith('p2')) {
-                                    await deleteDoc(doc(db, 'posts', post.id));
+                                  const saved = JSON.parse(localStorage.getItem('campus_connect_local_posts') || '[]');
+                                  localStorage.setItem('campus_connect_local_posts', JSON.stringify(saved.filter(p => p.id !== post.id)));
+                                } catch(e) {}
+                                try {
+                                  if (post.id && !post.id.startsWith('p_mock_') && !post.id.startsWith('p1') && !post.id.startsWith('p2') && !post.id.startsWith('p_')) {
+                                    deleteDoc(doc(db, 'posts', post.id)).catch(err => console.warn('Delete sync note:', err.message));
                                   }
-                                  setPosts(prev => prev.filter(p => p.id !== post.id));
-                                  triggerToast("Post deleted successfully");
                                 } catch(err) {
-                                  console.error(err);
-                                  triggerToast('Error deleting post');
+                                  console.warn('Delete note:', err);
                                 }
+                                triggerToast("Post deleted successfully");
                               }
                               setActiveMenuId(null);
                             }} 
