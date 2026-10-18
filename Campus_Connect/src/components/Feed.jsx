@@ -14,13 +14,21 @@ export default function Feed({
 }) {
   const [postText, setPostText] = useState('');
   const [activePostTag, setActivePostTag] = useState(''); // 'Photo', 'Achievement', 'Internship', 'Poll', 'Event'
-  const [showPhotoSelector, setShowPhotoSelector] = useState(false);
   const [selectedPhotoUrl, setSelectedPhotoUrl] = useState('');
   const [commentInputs, setCommentInputs] = useState({}); // { [postId]: '' }
   const [expandedComments, setExpandedComments] = useState({}); // { [postId]: boolean }
   const [toastMessage, setToastMessage] = useState('');
   const [localSearch, setLocalSearch] = useState('');
   const [activeMenuId, setActiveMenuId] = useState(null);
+
+  // Edit post states
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editingPostText, setEditingPostText] = useState('');
+  const [editingPostImage, setEditingPostImage] = useState(null);
+  const [isUpdatingPost, setIsUpdatingPost] = useState(false);
+
+  const fileInputRef = React.useRef(null);
+  const editFileInputRef = React.useRef(null);
 
   // Poll state variables
   const [showPollCreator, setShowPollCreator] = useState(false);
@@ -38,13 +46,116 @@ export default function Feed({
     setLocalSearch(searchQuery || '');
   }, [searchQuery]);
 
-  // Sample preset images for post creation
-  const presetPhotos = [
-    { name: 'Office Workspace', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=400&q=80' },
-    { name: 'Campus Library', url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=400&q=80' },
-    { name: 'Tech Seminar', url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=400&q=80' },
-    { name: 'Student Group', url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=400&q=80' }
-  ];
+  // Compress & read image from device (phone camera/gallery or PC files) via Canvas
+  const compressAndReadImage = (file, callback) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      triggerToast('Please select an image file (JPG, PNG, WebP)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        callback(dataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLocalImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      compressAndReadImage(file, (dataUrl) => {
+        setSelectedPhotoUrl(dataUrl);
+        setActivePostTag('Photo');
+        triggerToast('Photo attached from device 📷');
+      });
+    }
+    e.target.value = '';
+  };
+
+  const handleEditImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      compressAndReadImage(file, (dataUrl) => {
+        setEditingPostImage(dataUrl);
+        triggerToast('Photo updated 📷');
+      });
+    }
+    e.target.value = '';
+  };
+
+  // Helper to determine if current user owns this post (or is admin)
+  const isPostAuthor = (post) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'admin') return true;
+    if (post.user?.id && (post.user.id === currentUser.id || post.user.id === currentUser.uid)) return true;
+    if (post.user?.name && currentUser.name && post.user.name.toLowerCase() === currentUser.name.toLowerCase()) return true;
+    return false;
+  };
+
+  const startEditPost = (post) => {
+    setEditingPostId(post.id);
+    setEditingPostText(post.content || '');
+    setEditingPostImage(post.image || null);
+    setActiveMenuId(null);
+  };
+
+  const handleSaveEditPost = async (postId) => {
+    if (!editingPostText.trim() && !editingPostImage) {
+      triggerToast('Post cannot be completely empty');
+      return;
+    }
+    setIsUpdatingPost(true);
+    try {
+      if (postId && !postId.startsWith('p_mock_') && !postId.startsWith('p_new_') && !postId.startsWith('p1') && !postId.startsWith('p2')) {
+        await updateDoc(doc(db, 'posts', postId), {
+          content: editingPostText,
+          image: editingPostImage,
+          updatedAt: serverTimestamp()
+        });
+      }
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          return {
+            ...p,
+            content: editingPostText,
+            image: editingPostImage
+          };
+        }
+        return p;
+      }));
+      setEditingPostId(null);
+      setEditingPostText('');
+      setEditingPostImage(null);
+      triggerToast('Post updated successfully! ✏️');
+    } catch (err) {
+      console.error('Error updating post:', err);
+      triggerToast('Failed to update post');
+    } finally {
+      setIsUpdatingPost(false);
+    }
+  };
 
   // Show a temporary toast
   const triggerToast = (msg) => {
@@ -114,7 +225,6 @@ export default function Feed({
     setPostText('');
     setActivePostTag('');
     setSelectedPhotoUrl('');
-    setShowPhotoSelector(false);
     
     // Reset Poll Creator
     setShowPollCreator(false);
@@ -127,25 +237,21 @@ export default function Feed({
     setEventTitle('');
     setEventDate('');
     setEventLocation('');
-    
-    triggerToast('Post published successfully! 🚀');
   };
 
   const handleSelectTagButton = (tagName) => {
+    if (tagName === 'Photo') {
+      fileInputRef.current?.click();
+      return;
+    }
     if (activePostTag === tagName) {
       setActivePostTag('');
-      if (tagName === 'Photo') setShowPhotoSelector(false);
       if (tagName === 'Poll') setShowPollCreator(false);
       if (tagName === 'Event') setShowEventCreator(false);
     } else {
       setActivePostTag(tagName);
-      setShowPhotoSelector(tagName === 'Photo');
       setShowPollCreator(tagName === 'Poll');
       setShowEventCreator(tagName === 'Event');
-      
-      if (tagName !== 'Photo') {
-        setSelectedPhotoUrl('');
-      }
     }
   };
 
@@ -337,42 +443,45 @@ export default function Feed({
               
               {/* Image Preview */}
               {selectedPhotoUrl && (
-                <div className="photo-preview-container">
-                  <img src={selectedPhotoUrl} alt="Attached preview" className="photo-preview" />
-                  <button
-                    type="button"
-                    className="remove-photo-preview"
-                    onClick={() => setSelectedPhotoUrl('')}
-                  >
-                    <Icons.Close size={16} />
-                  </button>
+                <div className="photo-preview-container" style={{ position: 'relative', marginTop: '12px', display: 'inline-block' }}>
+                  <img src={selectedPhotoUrl} alt="Attached preview" className="photo-preview" style={{ maxHeight: '220px', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', top: '8px', right: '8px', display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{ backgroundColor: 'rgba(0,0,0,0.65)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: '500' }}
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      className="remove-photo-preview"
+                      onClick={() => { setSelectedPhotoUrl(''); setActivePostTag(''); }}
+                      title="Remove image"
+                    >
+                      <Icons.Close size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Photo attachment drawer */}
-          {showPhotoSelector && (
-            <div className="photo-picker-drawer animate-slide-in">
-              <span className="picker-label">Select a mockup photo:</span>
-              <div className="photo-grid">
-                {presetPhotos.map((photo) => (
-                  <button
-                    key={photo.url}
-                    type="button"
-                    className={`photo-option ${selectedPhotoUrl === photo.url ? 'selected' : ''}`}
-                    onClick={() => {
-                      setSelectedPhotoUrl(photo.url);
-                      setShowPhotoSelector(false);
-                    }}
-                  >
-                    <img src={photo.url} alt={photo.name} />
-                    <span>{photo.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Hidden Device File Inputs for Desktop & Mobile Storage / Camera */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            accept="image/*" 
+            style={{ display: 'none' }} 
+            onChange={handleLocalImageSelect} 
+          />
+          <input 
+            type="file" 
+            ref={editFileInputRef} 
+            accept="image/*" 
+            style={{ display: 'none' }} 
+            onChange={handleEditImageSelect} 
+          />
 
           {/* Poll Creator Drawer */}
           {showPollCreator && (
@@ -551,36 +660,68 @@ export default function Feed({
                   <button 
                     className="post-options-btn"
                     onClick={() => setActiveMenuId(activeMenuId === post.id ? null : post.id)}
+                    aria-label="Post options"
                   >
                     <Icons.MoreHorizontal size={18} />
                   </button>
                   {activeMenuId === post.id && (
-                    <div className="options-dropdown animate-slide-in" style={{ position: 'absolute', right: 0, top: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', zIndex: 10, padding: '8px 0', minWidth: '140px', boxShadow: 'var(--shadow-md)' }}>
-                      <button 
-                        onClick={() => { triggerToast("Edit coming soon"); setActiveMenuId(null); }} 
-                        style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-main)', fontSize: '13.5px', fontWeight: '600' }}
-                      >
-                        Edit Post
-                      </button>
-                      
-                      {(currentUser?.id === post.user?.id || currentUser?.role === 'admin') && (
-                        <button 
-                          onClick={async () => {
-                            if (window.confirm("Are you sure you want to delete this post?")) {
-                              try {
-                                await deleteDoc(doc(db, 'posts', post.id));
-                                triggerToast("Post deleted successfully");
-                              } catch(err) {
-                                console.error(err);
-                                triggerToast('Error deleting post');
+                    <div className="options-dropdown animate-slide-in" style={{ position: 'absolute', right: 0, top: '100%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', zIndex: 10, padding: '8px 0', minWidth: '150px', boxShadow: 'var(--shadow-md)' }}>
+                      {isPostAuthor(post) ? (
+                        <>
+                          <button 
+                            type="button"
+                            onClick={() => startEditPost(post)} 
+                            style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-heading)', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span>✏️</span> Edit Post
+                          </button>
+                          
+                          <button 
+                            type="button"
+                            onClick={async () => {
+                              if (window.confirm("Are you sure you want to delete this post?")) {
+                                try {
+                                  if (post.id && !post.id.startsWith('p_mock_') && !post.id.startsWith('p1') && !post.id.startsWith('p2')) {
+                                    await deleteDoc(doc(db, 'posts', post.id));
+                                  }
+                                  setPosts(prev => prev.filter(p => p.id !== post.id));
+                                  triggerToast("Post deleted successfully");
+                                } catch(err) {
+                                  console.error(err);
+                                  triggerToast('Error deleting post');
+                                }
                               }
-                            }
-                            setActiveMenuId(null);
-                          }} 
-                          style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: '13.5px', fontWeight: '600' }}
-                        >
-                          Delete Post
-                        </button>
+                              setActiveMenuId(null);
+                            }} 
+                            style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span>🗑️</span> Delete Post
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button 
+                            type="button"
+                            onClick={() => { handleBookmark(post.id); setActiveMenuId(null); }} 
+                            style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-heading)', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span>🔖</span> {post.bookmarked ? 'Remove Bookmark' : 'Save Post'}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => { handleShare(post.id); setActiveMenuId(null); }} 
+                            style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-heading)', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span>📋</span> Copy Link
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => { triggerToast("Report submitted to moderation"); setActiveMenuId(null); }} 
+                            style={{ width: '100%', padding: '8px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#F59E0B', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span>🚩</span> Report Post
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
@@ -588,88 +729,142 @@ export default function Feed({
               </div>
 
               {/* Body */}
-              <div className="post-body">
-                <p className="post-content-text">
-                  {/* Basic parsing to highlight hashtags */}
-                  {post.content.split(' ').map((word, idx) => {
-                    if (word.startsWith('#')) {
-                      return (
-                        <span
-                          key={idx}
-                          className="content-hashtag"
-                          onClick={() => {
-                            const cleanTag = word.substring(1);
-                            setSelectedTag(cleanTag);
-                            // We trigger app state updates via global filters
-                          }}
-                        >
-                          {word}{' '}
-                        </span>
-                      );
-                    }
-                    return word + ' ';
-                  })}
-                </p>
-
-                {/* Custom Poll Rendering */}
-                {post.poll && (
-                  <div className="feed-post-poll-card">
-                    <h4 className="poll-question-title">{post.poll.question}</h4>
-                    <div className="poll-options-list flex flex-col gap-8">
-                      {post.poll.options.map((option, idx) => {
-                        const totalVotes = post.poll.options.reduce((sum, o) => sum + o.votes, 0);
-                        const percent = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
-                        const isVoted = post.poll.votedIndex === idx;
-                        const hasVotedAny = post.poll.votedIndex !== null;
-
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            className={`poll-option-row ${isVoted ? 'voted' : ''}`}
-                            onClick={() => handleVote(post.id, idx)}
-                            disabled={hasVotedAny}
-                          >
-                            <div className="poll-option-progress" style={{ width: `${percent}%` }} />
-                            <span className="poll-option-text">{option.text}</span>
-                            {hasVotedAny && <span className="poll-option-pct">{percent}% ({option.votes})</span>}
-                          </button>
-                        );
-                      })}
+              {editingPostId === post.id ? (
+                /* Inline Post Editor */
+                <div className="post-inline-editor" style={{ padding: '16px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', margin: '12px 0' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px' }}>Edit Post</label>
+                  <textarea
+                    value={editingPostText}
+                    onChange={(e) => setEditingPostText(e.target.value)}
+                    rows={4}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', backgroundColor: 'var(--bg-card)', color: 'var(--text-heading)', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box' }}
+                    placeholder="What would you like to update?"
+                  />
+                  {editingPostImage && (
+                    <div style={{ position: 'relative', marginTop: '12px', display: 'inline-block' }}>
+                      <img src={editingPostImage} alt="Post attachment preview" style={{ maxHeight: '200px', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => setEditingPostImage(null)}
+                        style={{ position: 'absolute', top: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.65)', color: 'white', border: 'none', borderRadius: '50%', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        title="Remove attachment"
+                      >
+                        <Icons.Close size={14} />
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                {/* Custom Event Announcement Rendering */}
-                {post.event && (
-                  <div className="feed-post-event-card flex gap-12 align-center">
-                    <div className="event-date-block flex flex-col align-center justify-center">
-                      <span className="event-month-lbl">EVENT</span>
-                      <span className="event-day-lbl">{post.event.date}</span>
-                    </div>
-                    <div className="event-details-block flex-1">
-                      <h4 className="event-title-lbl">{post.event.title}</h4>
-                      <div className="event-meta-lbl flex align-center gap-8 text-muted">
-                        <Icons.Compass size={14} />
-                        <span>{post.event.location}</span>
-                      </div>
-                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', flexWrap: 'wrap', gap: '8px' }}>
                     <button
                       type="button"
-                      className="btn-primary sm"
-                      onClick={() => alert(`Registered for event: ${post.event.title}`)}
+                      onClick={() => editFileInputRef.current?.click()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-heading)', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
                     >
-                      Register
+                      <Icons.Image size={15} />
+                      <span>{editingPostImage ? 'Change Photo' : 'Attach Photo'}</span>
                     </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        disabled={isUpdatingPost}
+                        onClick={() => setEditingPostId(null)}
+                        style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-main)', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUpdatingPost}
+                        onClick={() => handleSaveEditPost(post.id)}
+                        style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--primary)', color: 'white', cursor: isUpdatingPost ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '600' }}
+                      >
+                        {isUpdatingPost ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="post-body">
+                  <p className="post-content-text">
+                    {/* Basic parsing to highlight hashtags */}
+                    {post.content.split(' ').map((word, idx) => {
+                      if (word.startsWith('#')) {
+                        return (
+                          <span
+                            key={idx}
+                            className="content-hashtag"
+                            onClick={() => {
+                              const cleanTag = word.substring(1);
+                              setSelectedTag(cleanTag);
+                            }}
+                          >
+                            {word}{' '}
+                          </span>
+                        );
+                      }
+                      return word + ' ';
+                    })}
+                  </p>
 
-                {post.image && (
-                  <div className="post-image-wrapper">
-                    <img src={post.image} alt="Post media attachment" className="post-image" />
-                  </div>
-                )}
-              </div>
+                  {/* Custom Poll Rendering */}
+                  {post.poll && (
+                    <div className="feed-post-poll-card">
+                      <h4 className="poll-question-title">{post.poll.question}</h4>
+                      <div className="poll-options-list flex flex-col gap-8">
+                        {post.poll.options.map((option, idx) => {
+                          const totalVotes = post.poll.options.reduce((sum, o) => sum + o.votes, 0);
+                          const percent = totalVotes > 0 ? Math.round((option.votes / totalVotes) * 100) : 0;
+                          const isVoted = post.poll.votedIndex === idx;
+                          const hasVotedAny = post.poll.votedIndex !== null;
+
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              className={`poll-option-row ${isVoted ? 'voted' : ''}`}
+                              onClick={() => handleVote(post.id, idx)}
+                              disabled={hasVotedAny}
+                            >
+                              <div className="poll-option-progress" style={{ width: `${percent}%` }} />
+                              <span className="poll-option-text">{option.text}</span>
+                              {hasVotedAny && <span className="poll-option-pct">{percent}% ({option.votes})</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Event Announcement Rendering */}
+                  {post.event && (
+                    <div className="feed-post-event-card flex gap-12 align-center">
+                      <div className="event-date-block flex flex-col align-center justify-center">
+                        <span className="event-month-lbl">EVENT</span>
+                        <span className="event-day-lbl">{post.event.date}</span>
+                      </div>
+                      <div className="event-details-block flex-1">
+                        <h4 className="event-title-lbl">{post.event.title}</h4>
+                        <div className="event-meta-lbl flex align-center gap-8 text-muted">
+                          <Icons.Compass size={14} />
+                          <span>{post.event.location}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary sm"
+                        onClick={() => alert(`Registered for event: ${post.event.title}`)}
+                      >
+                        Register
+                      </button>
+                    </div>
+                  )}
+
+                  {post.image && (
+                    <div className="post-image-wrapper">
+                      <img src={post.image} alt="Post media attachment" className="post-image" />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Footer / Actions */}
               <div className="post-actions justify-between align-center flex">

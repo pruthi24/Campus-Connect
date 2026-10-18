@@ -5,7 +5,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -14,6 +16,7 @@ const defaultAuth = {
   userRole: 'student',
   loading: false,
   login: async () => {},
+  loginWithGoogle: async () => {},
   signup: async () => {},
   logout: async () => {},
   updateUserProfile: async () => {}
@@ -191,6 +194,64 @@ export function AuthProvider({ children }) {
     return res;
   }
 
+  async function loginWithGoogle() {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const res = await signInWithPopup(auth, provider);
+    const user = res.user;
+
+    const finalName = user.displayName || (user.email ? user.email.split('@')[0] : 'GITA Student');
+    const cleanUsername = `@${finalName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const avatarUrl = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=7A1A22&color=fff&bold=true`;
+    const assignedRole = ADMIN_EMAILS.includes(user.email?.toLowerCase()) ? 'admin' : 'student';
+
+    const cached = getStoredProfile();
+    let profile;
+
+    if (cached && (cached.email?.toLowerCase() === user.email?.toLowerCase() || cached.uid === user.uid)) {
+      profile = {
+        ...cached,
+        uid: user.uid,
+        id: user.uid,
+        name: cached.name || finalName,
+        displayName: cached.displayName || finalName,
+        avatar: user.photoURL || cached.avatar || avatarUrl
+      };
+    } else {
+      profile = {
+        uid: user.uid,
+        id: user.uid,
+        email: user.email,
+        name: finalName,
+        displayName: finalName,
+        username: cleanUsername,
+        role: assignedRole,
+        branch: 'Computer Science & Engineering',
+        rollNumber: 'GITA/CSE/2023/042',
+        year: '3rd Year',
+        details: '3rd Year, CSE',
+        avatar: avatarUrl,
+        badge: 'Elite Contributor',
+        badgeDesc: 'Active member of GITA Campus Connect',
+        bio: 'Student at GITA Autonomous College, Bhubaneswar.',
+        tagline: 'Student at GITA Autonomous College',
+        createdAt: new Date().toISOString(),
+        lastEditedAt: Date.now()
+      };
+    }
+
+    saveUserSession(profile);
+    setLoading(false);
+
+    try {
+      await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+    } catch (e) {
+      console.warn('Firestore Google login sync note:', e);
+    }
+
+    return res;
+  }
+
   async function logout() {
     localStorage.removeItem('campus_connect_profile');
     setCurrentUser(null);
@@ -282,6 +343,7 @@ export function AuthProvider({ children }) {
     currentUser,
     userRole,
     login,
+    loginWithGoogle,
     signup,
     logout,
     updateUserProfile

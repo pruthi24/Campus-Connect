@@ -65,7 +65,7 @@ export default function ProfileDashboard({
       description: 'Published research paper on Cloud Resource Scheduling in IEEE Access journals.',
       date: '2026-05-15',
       category: 'Academic',
-      certificateImage: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=600&q=80',
+      certificateImage: '',
       photoImage: ''
     },
     {
@@ -74,7 +74,7 @@ export default function ProfileDashboard({
       description: 'Secured 1st place in the National Coding League, winning a cash prize of $1,000.',
       date: '2026-04-10',
       category: 'Hackathon',
-      certificateImage: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80',
+      certificateImage: '',
       photoImage: ''
     }
   ]);
@@ -180,21 +180,44 @@ export default function ProfileDashboard({
     setIsEditingBio(true);
   };
 
-  // Image Upload Simulation (creates base64 / dummy url)
+  // Image Upload handler with downscaling for device/phone uploads
   const handleFileSimulate = (field, e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        if (field === 'avatar') {
-          syncUserChanges({ avatar: reader.result });
-          addNotification('Profile avatar updated!', 'general');
-        } else {
-          setAchievementForm(prev => ({
-            ...prev,
-            [field]: reader.result
-          }));
-        }
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = field === 'avatar' ? 400 : 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+          if (field === 'avatar') {
+            syncUserChanges({ avatar: dataUrl });
+            addNotification('Profile avatar updated!', 'general');
+          } else {
+            setAchievementForm(prev => ({
+              ...prev,
+              [field]: dataUrl
+            }));
+          }
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -328,7 +351,7 @@ export default function ProfileDashboard({
         <div className="profile-sidebar-header text-center">
           <div className="profile-avatar-container">
             <img 
-              src={currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'} 
+              src={currentUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name || 'Student')}&background=7A1A22&color=fff&bold=true`} 
               alt={currentUser.name} 
               className="dashboard-avatar-img"
             />

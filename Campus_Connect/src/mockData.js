@@ -109,7 +109,7 @@ export const INITIAL_POSTS = [
     },
     time: "2h ago",
     content: "Registrations are now live for 'CodeQuest 2026' Hackathon! 🚀 Open to all engineering branches (CSE, IT, ECE, EE, ME, Civil). 36 hours of software and IoT development with mentorship from industry alumni. Form your teams in the Communities tab!",
-    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80",
+    image: null,
     likes: 142,
     comments: [
       {
